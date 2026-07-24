@@ -1,4 +1,4 @@
-name: Build ISKORA Fermata AAB
+name: Build ISKORA Drive AAB
 
 on:
   workflow_dispatch:
@@ -58,7 +58,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
-      - name: Configure version and signing
+      - name: Configure identity, version and signing
         working-directory: Fermata
         shell: bash
         env:
@@ -83,13 +83,28 @@ jobs:
           sed -i -E "s/appVersionCode = \"[0-9]+\"/appVersionCode = \"$VERSION_CODE\"/" gradle/libs.versions.toml
           sed -i -E "s/appVersionName = \"[^\"]+\"/appVersionName = \"$VERSION_NAME\"/" gradle/libs.versions.toml
 
+          python3 - <<'PY'
+          from pathlib import Path
+
+          files = [Path("build.gradle"), Path("fermata/build.gradle")]
+          old = "applicationIdSuffix '.auto' + project.getProperties().getOrDefault('APP_ID_SFX', '')"
+          new = "applicationIdSuffix project.getProperties().getOrDefault('APP_ID_SFX', '')"
+
+          for file in files:
+              text = file.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"Expected Android Auto package suffix was not found in {file}")
+              file.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+
       - name: Build signed Auto release AAB
         working-directory: Fermata
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon --stacktrace bundleAutoRelease \
-            -PAPP_ID=com.iskora.fermata \
-            -PAPP_NAME="ISKORA Fermata Test"
+            -PAPP_ID=com.iskora.drive \
+            -PAPP_ID_SFX= \
+            -PAPP_NAME="ISKORA Drive"
 
       - name: Verify package and signature
         working-directory: Fermata
@@ -100,10 +115,10 @@ jobs:
           test -n "$AAB"
           jarsigner -verify -verbose -certs "$AAB" >/dev/null
           mkdir -p "$GITHUB_WORKSPACE/output"
-          cp "$AAB" "$GITHUB_WORKSPACE/output/iskora-fermata-auto-${{ inputs.version_name }}-${{ inputs.version_code }}.aab"
+          cp "$AAB" "$GITHUB_WORKSPACE/output/iskora-drive-${{ inputs.version_name }}-${{ inputs.version_code }}.aab"
           cat > "$GITHUB_WORKSPACE/output/build-info.txt" <<EOF
-          Application ID: com.iskora.fermata.auto
-          App name: ISKORA Fermata Test
+          Application ID: com.iskora.drive
+          App name: ISKORA Drive
           Version name: ${{ inputs.version_name }}
           Version code: ${{ inputs.version_code }}
           Upstream: https://github.com/AndreyPavlenko/Fermata
@@ -112,7 +127,7 @@ jobs:
       - name: Upload Play Console bundle
         uses: actions/upload-artifact@v4
         with:
-          name: iskora-fermata-play-upload
+          name: iskora-drive-play-upload
           path: output/
           if-no-files-found: error
           retention-days: 14
