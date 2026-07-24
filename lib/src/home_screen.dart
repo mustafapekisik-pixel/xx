@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iskora_drive/src/player_controller.dart';
 
+const String _demoAudioUrl =
+    'https://storage.googleapis.com/exoplayer-test-media-0/play.mp3';
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -12,27 +15,20 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const List<String> _titles = <String>[
-    'Home',
-    'Library',
-    'Favorites',
-    'Settings',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final PlayerState player = ref.watch(playerControllerProvider);
-    final bool wide = MediaQuery.sizeOf(context).width >= 840;
+    final double width = MediaQuery.sizeOf(context).width;
+    final bool wide = width >= 840;
 
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: wide ? 32 : 20,
+        titleSpacing: 16,
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Container(
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primary,
                 borderRadius: BorderRadius.circular(12),
@@ -42,19 +38,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),
-            const SizedBox(width: 12),
-            const Text('ISKORA Drive'),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'ISKORA Drive',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: <Widget>[
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: Chip(
-              avatar: Icon(
+            child: Tooltip(
+              message: player.connected
+                  ? 'Native medya çekirdeği hazır'
+                  : 'Medya çekirdeğine bağlanılıyor',
+              child: Icon(
                 player.connected ? Icons.link_rounded : Icons.link_off_rounded,
-                size: 18,
+                color: player.connected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.error,
               ),
-              label: Text(player.connected ? 'Media core ready' : 'Connecting'),
             ),
           ),
         ],
@@ -71,22 +77,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   NavigationRailDestination(
                     icon: Icon(Icons.home_outlined),
                     selectedIcon: Icon(Icons.home_rounded),
-                    label: Text('Home'),
+                    label: Text('Ana sayfa'),
                   ),
                   NavigationRailDestination(
                     icon: Icon(Icons.library_music_outlined),
                     selectedIcon: Icon(Icons.library_music_rounded),
-                    label: Text('Library'),
+                    label: Text('Kütüphane'),
                   ),
                   NavigationRailDestination(
                     icon: Icon(Icons.favorite_outline_rounded),
                     selectedIcon: Icon(Icons.favorite_rounded),
-                    label: Text('Favorites'),
+                    label: Text('Favoriler'),
                   ),
                   NavigationRailDestination(
                     icon: Icon(Icons.settings_outlined),
                     selectedIcon: Icon(Icons.settings_rounded),
-                    label: Text('Settings'),
+                    label: Text('Ayarlar'),
                   ),
                 ],
               ),
@@ -95,12 +101,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: <Widget>[
                   Expanded(
                     child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 240),
-                      child: _buildPage(
-                        context,
-                        index: _selectedIndex,
-                        title: _titles[_selectedIndex],
-                      ),
+                      duration: const Duration(milliseconds: 220),
+                      child: _buildPage(player),
                     ),
                   ),
                   _NowPlayingBar(player: player),
@@ -119,137 +121,145 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
+                  label: 'Ana sayfa',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.library_music_outlined),
                   selectedIcon: Icon(Icons.library_music_rounded),
-                  label: 'Library',
+                  label: 'Kütüphane',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.favorite_outline_rounded),
                   selectedIcon: Icon(Icons.favorite_rounded),
-                  label: 'Favorites',
+                  label: 'Favoriler',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.settings_outlined),
                   selectedIcon: Icon(Icons.settings_rounded),
-                  label: 'Settings',
+                  label: 'Ayarlar',
                 ),
               ],
             ),
-      floatingActionButton: _selectedIndex == 0 || _selectedIndex == 1
-          ? FloatingActionButton.extended(
-              onPressed: () => _showStreamSheet(context),
-              icon: const Icon(Icons.add_link_rounded),
-              label: const Text('Open stream'),
-            )
-          : null,
     );
+  }
+
+  Widget _buildPage(PlayerState player) {
+    return switch (_selectedIndex) {
+      0 => _HomePage(
+          key: const ValueKey<String>('home'),
+          player: player,
+          onPlayDemo: _playDemo,
+          onOpenStream: _showStreamSheet,
+        ),
+      1 => _LibraryPage(
+          key: const ValueKey<String>('library'),
+          onPlayDemo: _playDemo,
+          onOpenStream: _showStreamSheet,
+        ),
+      2 => const _InformationPage(
+          key: ValueKey<String>('favorites'),
+          icon: Icons.favorite_rounded,
+          title: 'Favoriler',
+          message:
+              'Favori parça ve akışların kalıcı olarak saklanacağı bölüm hazırlanıyor.',
+        ),
+      _ => const _InformationPage(
+          key: ValueKey<String>('settings'),
+          icon: Icons.tune_rounded,
+          title: 'Ayarlar',
+          message:
+              'Tema, oynatma, depolama ve araç ayarları burada yönetilecek.',
+        ),
+    };
   }
 
   void _selectDestination(int index) {
     setState(() => _selectedIndex = index);
   }
 
-  Widget _buildPage(
-    BuildContext context, {
-    required int index,
-    required String title,
-  }) {
-    return switch (index) {
-      0 => _Dashboard(key: const ValueKey<String>('dashboard')),
-      1 => _EmptyPage(
-          key: const ValueKey<String>('library'),
-          icon: Icons.library_music_rounded,
-          title: title,
-          message: 'Local folders, playlists and network sources will live here.',
-        ),
-      2 => _EmptyPage(
-          key: const ValueKey<String>('favorites'),
-          icon: Icons.favorite_rounded,
-          title: title,
-          message: 'Pinned albums, streams and tracks will appear here.',
-        ),
-      _ => _EmptyPage(
-          key: const ValueKey<String>('settings'),
-          icon: Icons.tune_rounded,
-          title: title,
-          message: 'Playback, appearance, storage and car settings will live here.',
-        ),
-    };
+  Future<void> _playDemo() async {
+    await ref.read(playerControllerProvider.notifier).playUrl(
+          url: _demoAudioUrl,
+          title: 'ISKORA Test Sesi',
+          artist: 'Google ExoPlayer test medyası',
+        );
   }
 
-  Future<void> _showStreamSheet(BuildContext context) async {
+  Future<void> _showStreamSheet() async {
     final TextEditingController urlController = TextEditingController();
     final TextEditingController titleController =
-        TextEditingController(text: 'Internet stream');
+        TextEditingController(text: 'İnternet akışı');
 
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (BuildContext sheetContext) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            24,
-            8,
-            24,
-            MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Text(
-                'Open media stream',
-                style: Theme.of(sheetContext).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: titleController,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder(),
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  'HTTPS medya akışı aç',
+                  style: Theme.of(sheetContext).textTheme.headlineSmall,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlController,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: const InputDecoration(
-                  labelText: 'HTTPS media URL',
-                  hintText: 'https://example.com/audio.mp3',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Başlık',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () async {
-                  final String url = urlController.text.trim();
-                  final Uri? uri = Uri.tryParse(url);
-                  if (uri == null || !uri.isAbsolute || uri.scheme != 'https') {
-                    ScaffoldMessenger.of(sheetContext).showSnackBar(
-                      const SnackBar(content: Text('Enter a valid HTTPS URL.')),
-                    );
-                    return;
-                  }
-                  await ref.read(playerControllerProvider.notifier).playUrl(
-                        url: url,
-                        title: titleController.text.trim().isEmpty
-                            ? 'Internet stream'
-                            : titleController.text.trim(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: urlController,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'HTTPS medya adresi',
+                    hintText: 'https://example.com/audio.mp3',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () async {
+                    final String url = urlController.text.trim();
+                    final Uri? uri = Uri.tryParse(url);
+                    if (uri == null || !uri.isAbsolute || uri.scheme != 'https') {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('Geçerli bir HTTPS adresi gir.'),
+                        ),
                       );
-                  if (sheetContext.mounted) {
-                    Navigator.of(sheetContext).pop();
-                  }
-                },
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Play'),
-              ),
-            ],
+                      return;
+                    }
+
+                    await ref.read(playerControllerProvider.notifier).playUrl(
+                          url: url,
+                          title: titleController.text.trim().isEmpty
+                              ? 'İnternet akışı'
+                              : titleController.text.trim(),
+                        );
+                    if (sheetContext.mounted) {
+                      Navigator.of(sheetContext).pop();
+                    }
+                  },
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Oynat'),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -260,97 +270,149 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _Dashboard extends StatelessWidget {
-  const _Dashboard({super.key});
+class _HomePage extends StatelessWidget {
+  const _HomePage({
+    required this.player,
+    required this.onPlayDemo,
+    required this.onOpenStream,
+    super.key,
+  });
+
+  final PlayerState player;
+  final Future<void> Function() onPlayDemo;
+  final Future<void> Function() onOpenStream;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
+
     return ListView(
       key: key,
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 120),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       children: <Widget>[
-        Text('Your media, one place.', style: textTheme.displaySmall),
+        Text(
+          'Medyan. Yolculuğun.',
+          style: textTheme.headlineLarge,
+        ),
         const SizedBox(height: 8),
         Text(
-          'A modern phone experience backed by a native Android media service.',
+          'Flutter arayüzü, native Kotlin Media3 oynatma çekirdeğiyle çalışıyor.',
           style: textTheme.bodyLarge,
         ),
-        const SizedBox(height: 28),
-        LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final int columns = constraints.maxWidth >= 920
-                ? 4
-                : constraints.maxWidth >= 560
-                    ? 2
-                    : 1;
-            return GridView.count(
-              crossAxisCount: columns,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: columns == 1 ? 3.2 : 1.7,
-              children: const <Widget>[
-                _FeatureCard(
-                  icon: Icons.folder_copy_rounded,
-                  title: 'Folders',
-                  subtitle: 'Browse local media safely',
-                ),
-                _FeatureCard(
-                  icon: Icons.queue_music_rounded,
-                  title: 'Playlists',
-                  subtitle: 'Keep listening across devices',
-                ),
-                _FeatureCard(
-                  icon: Icons.podcasts_rounded,
-                  title: 'Streams',
-                  subtitle: 'Open HTTPS audio sources',
-                ),
-                _FeatureCard(
-                  icon: Icons.directions_car_filled_rounded,
-                  title: 'Car ready',
-                  subtitle: 'Native Media3 session controls',
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                const Icon(Icons.shield_outlined, size: 30),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Driver-safe architecture',
-                        style: textTheme.titleLarge,
+                Row(
+                  children: <Widget>[
+                    Icon(
+                      player.connected
+                          ? Icons.check_circle_rounded
+                          : Icons.sync_rounded,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        player.connected
+                            ? 'Native medya çekirdeği hazır'
+                            : 'Native medya çekirdeğine bağlanılıyor',
+                        style: textTheme.titleMedium,
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Android Auto uses its own approved media interface. The Flutter UI remains on the phone, while Kotlin and Media3 handle background playback and vehicle controls.',
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: player.connected ? onPlayDemo : null,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Test sesini çal'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: player.connected ? onOpenStream : null,
+                  icon: const Icon(Icons.add_link_rounded),
+                  label: const Text('Kendi HTTPS akışını aç'),
                 ),
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 20),
+        const _FeatureTile(
+          icon: Icons.library_music_rounded,
+          title: 'Çalışan medya oynatma',
+          subtitle: 'Test sesi veya HTTPS ses akışı oynatır.',
+        ),
+        const _FeatureTile(
+          icon: Icons.notifications_active_rounded,
+          title: 'Arka plan ve sistem kontrolleri',
+          subtitle: 'Media3 oturumu üzerinden oynat/duraklat kontrolü sağlar.',
+        ),
+        const _FeatureTile(
+          icon: Icons.directions_car_filled_rounded,
+          title: 'Android Auto kataloğu',
+          subtitle: 'Araç ekranına sürücü güvenli medya ağacı sunar.',
         ),
       ],
     );
   }
 }
 
-class _FeatureCard extends StatelessWidget {
-  const _FeatureCard({
+class _LibraryPage extends StatelessWidget {
+  const _LibraryPage({
+    required this.onPlayDemo,
+    required this.onOpenStream,
+    super.key,
+  });
+
+  final Future<void> Function() onPlayDemo;
+  final Future<void> Function() onOpenStream;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: key,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: <Widget>[
+        Text('Kütüphane', style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            leading: const CircleAvatar(
+              child: Icon(Icons.music_note_rounded),
+            ),
+            title: const Text('ISKORA Test Sesi'),
+            subtitle: const Text('Bağlantı ve Android Auto oynatma testi'),
+            trailing: const Icon(Icons.play_arrow_rounded),
+            onTap: onPlayDemo,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          child: ListTile(
+            leading: const CircleAvatar(
+              child: Icon(Icons.link_rounded),
+            ),
+            title: const Text('HTTPS akışı ekle'),
+            subtitle: const Text('Doğrudan MP3, AAC veya HLS ses adresi aç'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: onOpenStream,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Yerel klasör tarama ve kalıcı oynatma listeleri sonraki geliştirme katmanıdır.',
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureTile extends StatelessWidget {
+  const _FeatureTile({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -363,26 +425,19 @@ class _FeatureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(icon, size: 32),
-            const Spacer(),
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(subtitle),
-          ],
-        ),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(child: Icon(icon)),
+        title: Text(title),
+        subtitle: Text(subtitle),
       ),
     );
   }
 }
 
-class _EmptyPage extends StatelessWidget {
-  const _EmptyPage({
+class _InformationPage extends StatelessWidget {
+  const _InformationPage({
     required this.icon,
     required this.title,
     required this.message,
@@ -397,8 +452,8 @@ class _EmptyPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       key: key,
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Column(
@@ -438,68 +493,79 @@ class _NowPlayingBar extends ConsumerWidget {
           children: <Widget>[
             LinearProgressIndicator(value: progress, minHeight: 2),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                children: <Widget>[
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(Icons.graphic_eq_rounded),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          player.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final bool compact = constraints.maxWidth < 390;
+                  return Row(
+                    children: <Widget>[
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(13),
                         ),
-                        Text(
-                          player.error ?? player.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: const Icon(Icons.graphic_eq_rounded),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              player.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              player.error ?? player.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Previous',
-                    onPressed: () => ref
-                        .read(playerControllerProvider.notifier)
-                        .skipPrevious(),
-                    icon: const Icon(Icons.skip_previous_rounded),
-                  ),
-                  FilledButton(
-                    onPressed: player.connected
-                        ? () => ref
-                            .read(playerControllerProvider.notifier)
-                            .togglePlayback()
-                        : null,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(52, 52),
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: Icon(
-                      player.playing
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Next',
-                    onPressed: () => ref
-                        .read(playerControllerProvider.notifier)
-                        .skipNext(),
-                    icon: const Icon(Icons.skip_next_rounded),
-                  ),
-                ],
+                      ),
+                      if (!compact)
+                        IconButton(
+                          tooltip: 'Önceki',
+                          onPressed: player.connected
+                              ? () => ref
+                                  .read(playerControllerProvider.notifier)
+                                  .skipPrevious()
+                              : null,
+                          icon: const Icon(Icons.skip_previous_rounded),
+                        ),
+                      FilledButton(
+                        onPressed: player.connected
+                            ? () => ref
+                                .read(playerControllerProvider.notifier)
+                                .togglePlayback()
+                            : null,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Icon(
+                          player.playing
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                        ),
+                      ),
+                      if (!compact)
+                        IconButton(
+                          tooltip: 'Sonraki',
+                          onPressed: player.connected
+                              ? () => ref
+                                  .read(playerControllerProvider.notifier)
+                                  .skipNext()
+                              : null,
+                          icon: const Icon(Icons.skip_next_rounded),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
