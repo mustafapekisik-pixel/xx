@@ -1,56 +1,99 @@
-# ISKORA Drive Build
+# ISKORA Drive
 
-Bu depo, resmî açık kaynak [AndreyPavlenko/Fermata](https://github.com/AndreyPavlenko/Fermata) kaynağını indirip **benzersiz paket kimliğiyle** AAB üretmek için hazırlanmıştır.
+Profesyonel Flutter telefon arayüzü ile native Kotlin/Media3 oynatma çekirdeğini birleştiren hibrit Android medya uygulaması.
 
-## Sabit kimlikler
+## Kimlik
 
-- Geliştirici markası: **ISKORA TECHNOLOGIES**
 - Uygulama adı: **ISKORA Drive**
-- Nihai application ID: `com.iskora.drive`
+- Geliştirici markası: **ISKORA TECHNOLOGIES**
+- Application ID: `com.iskora.drive`
+- Minimum Android: API 28
+- Hedef Android: API 36
 
-Paket adında ve kullanıcıya görünen uygulama adında `fermata.auto` bulunmaz.
+Kullanıcıya görünen alanlarda veya paket kimliğinde `fermata.auto` bulunmaz.
 
-## GitHub Actions ile AAB üretme
-
-1. Depoda **Actions** sekmesine gir.
-2. **Build ISKORA Drive AAB** iş akışını aç.
-3. **Run workflow** seçeneğine bas.
-4. İlk yüklemede varsayılan `versionCode` ve `versionName` değerlerini kullanabilirsin.
-5. İş bitince **Artifacts** bölümünden `iskora-drive-play-upload` dosyasını indir.
-
-İlk çalıştırmada iş akışı yeni bir upload key üretmez; önce signing secret'larını eklemen gerekir.
-
-## İmzalama bilgileri
-
-Repo secrets:
-
-- `ISKORA_KEYSTORE_B64`
-- `ISKORA_STORE_PASSWORD`
-- `ISKORA_KEY_ALIAS`
-- `ISKORA_KEY_PASSWORD`
-
-Windows PowerShell'de JKS dosyasını Base64'e çevirme:
-
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\iskora-upload.jks")) | Set-Clipboard
-```
-
-GitHub'da: **Settings → Secrets and variables → Actions → New repository secret**.
-
-## Play Console
-
-Internal test uygulaması oluştururken paket adı:
+## Mimari
 
 ```text
-com.iskora.drive
+Flutter
+├── Material 3 responsive telefon arayüzü
+├── Riverpod durum yönetimi
+├── GoRouter navigasyon
+└── MethodChannel / EventChannel
+
+Native Android (Kotlin)
+├── Media3 ExoPlayer
+├── MediaLibraryService
+├── MediaLibrarySession
+├── Arka plan oynatma
+├── Sistem medya kontrolleri
+└── Android Auto'nun sürücü güvenli medya arayüzü
 ```
 
-Bu paket adı Play Console'da ilk AAB yüklemesinden sonra değiştirilemez. Yeni sürüm yüklerken `versionCode` değerini mutlaka artır.
+Flutter yalnızca telefon ekranını çizer. Arka plan oynatma, medya oturumu, bildirimler ve Android Auto bağlantısı Kotlin tarafında kalır.
 
-## Güvenlik ve politika sınırı
+## Windows kurulumu
 
-Bu yapı yalnızca benzersiz paket kimliği, adlandırma, sürümleme ve imzalı AAB üretimini otomatikleştirir. Android Auto'nun hareket hâlindeki güvenlik kısıtlamalarını kaldırmaz ve uygulamayı yanlış bir kategori altında yayımlamak için değişiklik yapmaz. Araç ekranındaki video özellikleri yalnızca güvenli biçimde park hâlindeyken test edilmelidir.
+Flutter SDK ve Git kurulu olmalıdır.
 
-## Lisans ve atıf
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_flutter.ps1
+```
 
-Fermata GPL-3.0 lisanslıdır. Değiştirilmiş ikili dosyayı başkalarına dağıtırsan ilgili kaynak kodunu ve GPL-3.0 lisans bildirimini erişilebilir tutman gerekir. Bu depo Fermata'nın resmî geliştiricisiyle bağlantılı değildir.
+Script eksik Flutter platform dosyalarını oluşturur, proje kaynaklarını geri yükler, paketleri indirir, analiz ve testleri çalıştırır.
+
+Ardından:
+
+```powershell
+flutter run
+```
+
+## AAB üretme
+
+Yerel test derlemesi:
+
+```powershell
+flutter build appbundle --release
+```
+
+Çıktı:
+
+```text
+build/app/outputs/bundle/release/app-release.aab
+```
+
+GitHub'da **Flutter Native CI** iş akışı analiz, test ve AAB üretimini otomatik yapar. CI'daki varsayılan imza yalnızca teknik doğrulama içindir; Play Console'a yüklemeden önce kendi upload key dosyanı `android/key.properties` ile bağla.
+
+## Upload key örneği
+
+`android/key.properties`:
+
+```properties
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=iskora-upload
+storeFile=C:\\secure\\iskora-upload.jks
+```
+
+JKS dosyasını ve parolaları repoya ekleme.
+
+## İlk çalışan kapsam
+
+- Responsive Material 3 ana ekran
+- Açık/koyu sistem teması
+- HTTPS ses akışı açma
+- Flutter ↔ Kotlin medya komutları
+- Media3 arka plan servisi
+- Play/pause/önceki/sonraki kontrolleri
+- Android Auto medya keşif bildirimi
+- Birim testi ve CI derlemesi
+
+Sonraki katmanlar: yerel klasör tarama, kalıcı medya veritabanı, oynatma listeleri, favoriler, IPTV kaynak yönetimi, ses efektleri ve Android Auto içerik ağacı.
+
+## Güvenlik ve araç kullanımı
+
+Android Auto araç ekranında kendi onaylı ve sürücü güvenli medya arayüzünü kullanır. Proje hareket hâlinde video gösterme veya araç güvenlik kilitlerini kaldırma amacı taşımaz. Telefon tarafındaki görsel medya özellikleri araç güvenli biçimde park hâlindeyken kullanılmalıdır.
+
+## Açık kaynak geçişi
+
+Fermata'dan işlev veya kod taşınacak bölümler ayrı commitlerde incelenecek ve GPL-3.0 yükümlülükleri korunacaktır. Mevcut temel, Flutter arayüzü ve native Media3 bağlantısı için temiz bir başlangıç katmanıdır.
