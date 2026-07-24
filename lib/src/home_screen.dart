@@ -229,7 +229,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               FilledButton.icon(
                 onPressed: () async {
                   final String url = urlController.text.trim();
-                  if (!Uri.tryParse(url).isAbsolute || !url.startsWith('https://')) {
+                  final Uri? uri = Uri.tryParse(url);
+                  if (uri == null || !uri.isAbsolute || uri.scheme != 'https') {
                     ScaffoldMessenger.of(sheetContext).showSnackBar(
                       const SnackBar(content: Text('Enter a valid HTTPS URL.')),
                     );
@@ -328,7 +329,10 @@ class _Dashboard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text('Driver-safe architecture', style: textTheme.titleLarge),
+                      Text(
+                        'Driver-safe architecture',
+                        style: textTheme.titleLarge,
+                      ),
                       const SizedBox(height: 6),
                       const Text(
                         'Android Auto uses its own approved media interface. The Flutter UI remains on the phone, while Kotlin and Media3 handle background playback and vehicle controls.',
