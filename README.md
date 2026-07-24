@@ -1,43 +1,35 @@
-# ISKORA Fermata Build
+# ISKORA Drive Build
 
 Bu depo, resmî açık kaynak [AndreyPavlenko/Fermata](https://github.com/AndreyPavlenko/Fermata) kaynağını indirip **benzersiz paket kimliğiyle** AAB üretmek için hazırlanmıştır.
 
 ## Sabit kimlikler
 
 - Geliştirici markası: **ISKORA TECHNOLOGIES**
-- Uygulama adı: **ISKORA Fermata Test**
-- Temel application ID: `com.iskora.fermata`
-- Auto sürümünün nihai paket kimliği: `com.iskora.fermata.auto`
+- Uygulama adı: **ISKORA Drive**
+- Nihai application ID: `com.iskora.drive`
 
-Fermata'nın `auto` flavor'ı temel kimliğe `.auto` eklediği için Play Console'da oluşturulacak uygulamanın paket adı tam olarak `com.iskora.fermata.auto` olmalıdır.
+Paket adında ve kullanıcıya görünen uygulama adında `fermata.auto` bulunmaz.
 
 ## GitHub Actions ile AAB üretme
 
 1. Depoda **Actions** sekmesine gir.
-2. **Build ISKORA Fermata AAB** iş akışını aç.
+2. **Build ISKORA Drive AAB** iş akışını aç.
 3. **Run workflow** seçeneğine bas.
 4. İlk yüklemede varsayılan `versionCode` ve `versionName` değerlerini kullanabilirsin.
-5. İş bitince **Artifacts** bölümünden `iskora-fermata-play-upload` dosyasını indir.
+5. İş bitince **Artifacts** bölümünden `iskora-drive-play-upload` dosyasını indir.
 
-İlk çalıştırmada iş akışı yeni bir upload key üretir. Artifact içinde şunlar bulunur:
+İlk çalıştırmada iş akışı yeni bir upload key üretmez; önce signing secret'larını eklemen gerekir.
 
-- Google Play'e yüklenecek `.aab`
-- `iskora-upload.jks`
-- `upload-key-info.txt`
-- `build-info.txt`
+## İmzalama bilgileri
 
-**JKS dosyasını ve şifre dosyasını güvenli yerde sakla.** Aynı Play Console uygulamasının sonraki sürümlerini yüklemek için aynı upload key gerekir.
-
-## Sonraki derlemelerde aynı imzayı kullanma
-
-İlk artifact'tan aldığın JKS dosyasını Base64'e çevirip repo secrets olarak ekle:
+Repo secrets:
 
 - `ISKORA_KEYSTORE_B64`
 - `ISKORA_STORE_PASSWORD`
 - `ISKORA_KEY_ALIAS`
 - `ISKORA_KEY_PASSWORD`
 
-Windows PowerShell'de Base64 üretme:
+Windows PowerShell'de JKS dosyasını Base64'e çevirme:
 
 ```powershell
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\iskora-upload.jks")) | Set-Clipboard
@@ -50,10 +42,10 @@ GitHub'da: **Settings → Secrets and variables → Actions → New repository s
 Internal test uygulaması oluştururken paket adı:
 
 ```text
-com.iskora.fermata.auto
+com.iskora.drive
 ```
 
-Yeni sürüm yüklerken `versionCode` değerini mutlaka artır.
+Bu paket adı Play Console'da ilk AAB yüklemesinden sonra değiştirilemez. Yeni sürüm yüklerken `versionCode` değerini mutlaka artır.
 
 ## Güvenlik ve politika sınırı
 
